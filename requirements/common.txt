@@ -1,0 +1,24 @@
+# django
+# django-extensions
+# django-pdb
+# uwsgi
+# werkzeug
+
+# djangorestframework
+# django-redis
+# django-constance[database]
+
+# django-redis
+# celery[redis]
+# django-celery-results
+# django-celery-beat
+
+#//
+mysqlclient
+# pyopenssl
+# pillow
+# numpy
+
+# Local Variables:
+# mode: conf
+# End:

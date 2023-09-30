@@ -1,0 +1,36 @@
+---
+roles:
+  linuxguest:
+    check_update: false
+    # config.vbguest.auto_update = true
+
+    ssh:
+      forward_agent: true
+
+    synced_folders:
+    - host_path: .
+      guest_path: /vagrant
+      type: virtualbox
+      # disabled: true
+
+    providers:
+      - type: virtualbox
+        memory: '8192'
+        customize:
+          - [modifyvm, !ruby/sym id, --graphicscontroller, 'vmsvga']
+          - [modifyvm, !ruby/sym id, --vram, '64']
+          - [modifyvm, !ruby/sym id, --accelerate3d, 'off']
+
+          - [modifyvm, !ruby/sym id, --vrde, 'off']
+          # - [modifyvm, !ruby/sym id, --vrde, 'on']
+          # - [modifyvm, !ruby/sym id, --vrdeaddress, '0.0.0.0']
+          # - [modifyvm, !ruby/sym id, --vrdeport, '5977']
+
+    # provisioners:
+    #   - type: bolt
+    #     command: plan
+    #     name: private::required
+
+    #   - type: bolt
+    #     command: plan
+    #     name: private::setup

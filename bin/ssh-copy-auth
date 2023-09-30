@@ -1,0 +1,108 @@
+#!/bin/sh
+set -e
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+
+RCSID='$Id: ssh-copy-auth,v 1.3 2023/09/30 00:12:47 nak Exp nak $'
+
+usage() {
+  cat <<EOF
+Usage:
+  $prog [OPTION...] [USER@]HOSTNAME [IDENTITY_FILE]
+
+ssh キーでリモート・ホストにログインできるようにする。
+
+詳細:
+IDENTITIY_FILE で指定した ssh プライベート・キーを使ってリモート・ホストにアクセスし、
+ssh agent に登録してある ssh プライベート・キーをリモート・ホストの authorized_keys
+に追加する。
+
+Options:
+   --vagrant                 IDENTITY_FILE の代わりに vagrant のプライベート・キー・
+                             ファイルを使う。
+
+   -h, --help                このヘルプを表示する。
+
+EOF
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+get_params_from_vagrant() {
+  local host="$1"
+  vagrant ssh-config $host | awk -v SQ="'" '
+/^$/ { next }
+$1 == "Host" { print "remhost=" SQ $2 SQ ";"; next }
+$1 == "IdentityFile" { print "secpath=" SQ $2 SQ ";"; next }
+$1 == "IdentitiesOnly" { next }
+{ sshopts = sshopts " -o " $1 "=" $2; next }
+END { print "sshopts=" SQ sshopts SQ ";" }
+'
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version,vagrant --options h -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: invalid parameter (use -h for help)" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  local use_vagrant
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        usage
+        exit
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --vagrant)
+        use_vagrant=yes
+        ;;
+      --)
+        shift; break
+        ;;
+    esac
+    shift
+  done
+
+  local remhost secpath sshopts
+  if [ -n "$use_vagrant" ]; then
+    local target_host="$1"
+    eval "$( get_params_from_vagrant "$target_host" )"
+  else
+    remhost="${1:?too few arguments}"
+    secpath="${2:?too few arguments}"
+    sshopts=
+  fi
+
+  local tmpdir="$( mktemp -d --tmpdir .ssh-copy-auth.XXXXXXXXXX )"
+  trap "rm -rf '$tmpdir'" EXIT
+  local tmpsec="$tmpdir/private_key"
+
+  set -x
+  install -m 600 "$secpath" "$tmpsec"
+  ssh-keygen -y -f "$tmpsec" >"$tmpsec.pub"
+  ssh-add "$tmpsec"
+  ssh-copy-id $sshopts "$remhost"
+  ssh-add -d "$tmpsec"
+}
+
+main "$@"
+
+# Local Variables:
+# fill-column: 84
+# End:

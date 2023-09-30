@@ -1,0 +1,198 @@
+#!/bin/sh
+set -e +x
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+me="$( realpath "$0" )"
+here="${me%/*}"
+run=
+
+RCSID='$Id: packages,v 2.2 2023/09/30 00:04:38 nak Exp nak $'
+
+usage() {
+  cat <<EOF
+Usage: $prog [OPTION...]
+
+yaml で記述したパッケージ定義を元に、パッケージをインストールする。
+
+   パッケージ定義は、 packages スクリプトと同じ場所に次のいずれかのファイル名で用意しておく。
+   - packages.{ID}{VERSION_ID}.yml
+   - packages.{ID}{MAJOR_VERSION_ID}.yml
+   - packages.{ID}.yml
+
+Options:
+   --list            インストールするパッケージの一覧を表示する。(デフォルト)
+   --install         パッケージをインストールする。
+   -f, --file=PATH   パッケージ定義ファイルを指定する。
+   --dry-run         コマンドを表示するだけで実行しない。
+   -h, --help        このヘルプを表示する。
+   --version         バージョンを表示する。
+
+EOF
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+ensure_root() {
+  if [ "$( id -u )" != 0 ]; then
+    echo "$prog: You must be a root." >&2
+    return 1
+  fi
+}
+
+list_absent_packages() {
+  # インストールされていないパッケージの一覧を返す
+  local pkg
+  for pkg in "$@"; do
+    dpkg-query -Wf '${db:Status-Abbrev} ${Package}\n' "$pkg" 2>/dev/null ||
+      echo "-- $pkg"
+  done |
+    awk '!/^.i/ { print $2 }' |
+    sort | uniq
+}
+
+run__list() {
+  echo "$@"
+}
+
+run__apt_install() {
+  ensure_root
+  local repos debs pkgs
+  for pkg in $@; do
+    case "$pkg" in
+      repo:*)
+        repos="$repos ${pkg##repo:}"
+        ;;
+      *.deb)
+        debs="$debs $pkg"
+        ;;
+      *)
+        pkgs="$pkgs $pkg"
+        ;;
+    esac
+  done
+
+  eval set -- "$repos"
+  local repo
+  for repo in "$@"; do
+    ( set -x
+      "$here/add-repo" ${run:+--dry-run} "$repo"
+    )
+  done
+  if [ $# -gt 0 ]; then
+    ( set -x
+      apt-get update
+    )
+  fi
+
+  eval set -- "$debs"
+  local src
+  for src in "$@"; do
+    local deb="/tmp/${src##*/}"
+    ( trap "rm -f '$deb'" EXIT
+      set -x
+      ${run}curl -fLR -o "$deb" "$src"
+      ${run}dpkg -i --force-confmiss "$deb"
+    )
+  done
+
+  eval set -- "$pkgs"
+  if [ $# -gt 0 ]; then
+    local required="$( list_absent_packages $pkgs "$@" )"
+    ( set -x
+      export \
+        DEBIAN_FRONTEND=noninteractive \
+        DEBCONF_NONINTERACTIVE_SEEN=true \
+      ;
+      ${run}apt-get install -y $required
+    )
+  fi
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version,dry-run,file:,list,install --options hf:l -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: invalid parameter (use -h for help)" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  local ID= VERSION_ID=
+  . /etc/os-release
+
+  local op=list src
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        usage
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --dry-run)
+        run=': '
+        ;;
+      --list|-l)
+        op=list
+        ;;
+      --file|-f)
+        src="$2"
+        shift
+        ;;
+      --install)
+        case "$ID" in
+          ubuntu)
+            op=apt_install
+            ;;
+          *)
+            # 現在は ubuntu のみ
+            echo "$prog: unknown linux distribution: $ID" >&2
+            return 1
+            ;;
+        esac
+        ;;
+      --)
+        shift
+        break
+        ;;
+    esac
+    shift
+  done
+
+  if [ -z "$src" ]; then
+    for src in "$0.$ID${VERSION_ID%%.*}.yml" "$0.$ID$VERSION_ID.yml" "$0.$ID.yml" NOTFOUND; do
+      if [ "$src" = NOTFOUND ]; then
+        echo "$prog: no package definition for: $ID$VERSION_ID" >&2
+        return 1
+      fi
+
+      if [ -f "$src" ]; then
+        break
+      fi
+    done
+  fi
+
+  set -- "$@" "$(
+    cat "$src" |
+      /usr/bin/python3 -c '
+import sys, yaml
+names = [el if isinstance(el, (list, tuple)) else [el] for el in yaml.safe_load(sys.stdin)["packages"]]
+print(" ".join([li for le in names for li in le]))
+'
+  )"
+
+  "run__$op" "$@"
+}
+
+main "$@"

@@ -1,0 +1,6 @@
+flake8
+yq
+
+# Local Variables:
+# mode: conf
+# End:

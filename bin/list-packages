@@ -1,0 +1,96 @@
+#!/bin/sh
+set -e
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+
+RCSID='$Id: list-packages,v 1.1 2023/09/30 00:48:59 nak Exp nak $'
+
+usage() {
+  cat <<EOF
+Usage: $prog [OPTION...]
+
+  システム・パッケージのステータスを表示する
+
+Options:
+  --installed          インストールしているすべてのパッケージ (デフォルト)
+  -R,--required        優先順位 required のパッケージ
+  -I,--important       優先順位 important のパッケージ
+  -S,--standard        優先順位 standard のパッケージ
+  -h, --help           このヘルプを表示する。
+  --version            プログラムのバージョンを表示する。
+
+EOF
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+ensure_aptitude() {
+  if ! command -v aptitude >/dev/null; then
+    echo "$prog: aptitude: command not found." >&2
+    return 1
+  fi
+}
+
+main() {
+  ensure_aptitude
+  ARGS=$( getopt --name $prog --long help,version,installed,required,important,standard --options hRIS -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: getopt error occured: $?" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  local query=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        usage
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --installed)
+        query="?installed"
+        ;;
+      -R|--required)
+        query="$query\n~prequired"
+        ;;
+      -I|--important)
+        query="$query\n~pimportant"
+        ;;
+      -S|--standard)
+        query="$query\n~pstandard"
+        ;;
+      --)
+        shift
+        break
+        ;;
+    esac
+    shift
+  done
+
+  local qstr="$( 
+    echo "${query:-?installed}" |
+      sort | uniq | grep -v '^$' | paste -s -d'|'
+  )"
+  export LANG=C.UTF-8
+  aptitude -q -w120 search "$qstr" -F'%c%a%M %p %V# %s# %P'
+}
+
+main "$@"
+
+# Local Variables:
+# fill-column: 84
+# End:

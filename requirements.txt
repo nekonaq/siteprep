@@ -1,0 +1,6 @@
+-r requirements/base.txt
+-r requirements/common.txt
+
+# Local Variables:
+# mode: conf
+# End:

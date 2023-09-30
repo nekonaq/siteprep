@@ -1,0 +1,69 @@
+#!/bin/sh
+set -e
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+
+RCSID='$Id: make-manifest,v 1.3 2023/09/30 00:08:23 nak Exp nak $'
+
+usage() {
+  cat <<EOF
+Usage: $prog [OPTION...]
+
+  インストールされているパッケージのマニフェスト・ファイルを生成する。
+
+Options:
+  -h, --help           このヘルプを表示する。
+  --version            プログラムのバージョンを表示する。
+
+EOF
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version --options h -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: getopt error occured: $?" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        usage
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --)
+        shift
+        break
+        ;;
+    esac
+    shift
+  done
+
+  export LANG=C.UTF-8
+  ( set -x
+    dpkg-query -W --showformat='${Package} ${Version}\n'
+  )
+}
+
+main "$@"
+
+# Local Variables:
+# fill-column: 84
+# End:

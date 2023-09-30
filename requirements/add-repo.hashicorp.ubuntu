@@ -1,0 +1,9 @@
+# see: https://developer.hashicorp.com/vagrant/downloads
+#
+#@key hashicorp-archive-keyring		https://apt.releases.hashicorp.com/gpg
+#
+deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $VERSION_CODENAME main
+
+# Local Variables:
+# mode: conf
+# End:

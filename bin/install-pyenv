@@ -1,0 +1,103 @@
+#!/bin/sh
+set -e
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+
+RCSID='$Id: install-pyenv,v 1.2 2023/09/30 00:06:53 nak Exp nak $'
+REPO_BASE_DEFAULT=https://github.com/pyenv
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version,pyenv-root: --options hd: -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: getopt error occured: $?" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  local pyenv_root="$HOME/.pyenv"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --help|-h)
+        # usage
+        echo "$prog: sorry, no help available" >&2
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --pyenv-root|-d)
+        pyenv_root="$2"
+        shift
+        ;;
+      --)
+        shift; break
+        ;;
+    esac
+    shift
+  done
+
+  if [ -e "$pyenv_root" ]; then
+    echo "$prog: pyenv root already exists: $pyenv_root" >&2
+    return
+  fi
+
+  local repo_base="${1:-$REPO_BASE_DEFAULT}"
+  ( set -x
+    git clone "$repo_base/pyenv.git" "$pyenv_root"
+  )
+
+  local plugin
+  for plugin in pyenv-doctor pyenv-installer pyenv-update pyenv-virtualenv pyenv-which-ext; do
+    ( set -x
+      git clone "$repo_base/$plugin.git" "$pyenv_root/plugins/$plugin"
+    )
+  done
+
+  local base_dir="${pyenv_root%/.pyenv}"
+  if [ "$base_dir" = "$HOME" ]; then
+    ( cat <<'EOF'
+#// setup pyenv
+init_pyenv() {
+  : "${PYENV_ROOT:=$1}"
+  if [ ! -f "${PYENV_ROOT}/bin/pyenv" ]; then
+    unset PYENV_ROOT
+    return 1
+  fi
+
+  export PYENV_ROOT
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  eval "$( pyenv init - )"
+  eval "$( pyenv virtualenv-init - )"
+}
+
+if ! which pyenv >/dev/null; then
+  init_pyenv "$HOME/.pyenv"
+fi
+
+unset init_pyenv
+EOF
+    ) | (
+      set -x
+      install -m 644 /dev/stdin "$base_dir/.pyenv-init.sh"
+    )
+  fi
+}
+
+main "$@"
+
+# Local Variables:
+# fill-column: 84
+# End:
