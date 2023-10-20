@@ -1,0 +1,3 @@
+---
+packages:
+  - https://apt.puppet.com/puppet8-release-$VERSION_CODENAME.deb

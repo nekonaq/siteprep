@@ -10,7 +10,7 @@ me="$( realpath "$0" )"
 here="${me%/*}"
 run=
 
-RCSID='$Id: packages,v 2.2 2023/09/30 00:04:38 nak Exp nak $'
+RCSID='$Id: packages,v 2.3 2023/10/20 01:59:22 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -49,6 +49,22 @@ ensure_root() {
   fi
 }
 
+replace_dist_info() {
+  local str="$1"
+
+  local ARCH="$( dpkg --print-architecture )"
+  local ID= VERSION_ID= VERSION_CODENAME=
+  . /etc/os-release
+
+  echo -n "$str" | (
+    sed -e 's!$ARCH!'"$ARCH"'!' \
+        -e 's!$ID!'"$ID"'!' \
+        -e 's!$VERSION_ID!'"$VERSION_ID"'!' \
+        -e 's!$VERSION_CODENAME!'"$VERSION_CODENAME"'!' \
+    ;
+  )
+}
+
 list_absent_packages() {
   # インストールされていないパッケージの一覧を返す
   local pkg
@@ -60,12 +76,26 @@ list_absent_packages() {
     sort | uniq
 }
 
-run__list() {
-  echo "$@"
+op__list() {
+  for pkg in $@; do
+    case "$pkg" in
+      *.deb)
+        echo "$( replace_dist_info "$pkg" )"
+
+        ;;
+      *)
+        echo "$pkg"
+        ;;
+    esac
+  done
 }
 
-run__apt_install() {
+op__apt_install() {
   ensure_root
+
+  local ID= VERSION_ID= VERSION_CODENAME=
+  . /etc/os-release
+
   local repos debs pkgs
   for pkg in $@; do
     case "$pkg" in
@@ -97,6 +127,7 @@ run__apt_install() {
   eval set -- "$debs"
   local src
   for src in "$@"; do
+    src="$( replace_dist_info "$src" )"
     local deb="/tmp/${src##*/}"
     ( trap "rm -f '$deb'" EXIT
       set -x
@@ -126,7 +157,7 @@ main() {
   fi
   eval set -- "$ARGS"
 
-  local ID= VERSION_ID=
+  local ID= VERSION_ID= VERSION_CODENAME=
   . /etc/os-release
 
   local op=list src
@@ -192,7 +223,7 @@ print(" ".join([li for le in names for li in le]))
 '
   )"
 
-  "run__$op" "$@"
+  "op__$op" "$@"
 }
 
 main "$@"
