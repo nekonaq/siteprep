@@ -1,7 +1,7 @@
 # see: https://www.virtualbox.org/wiki/Linux_Downloads
 #
 #@key oracle-virtualbox-2016	https://www.virtualbox.org/download/oracle_vbox_2016.asc
-#
+#@sources
 deb [arch=$ARCH signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian $VERSION_CODENAME contrib
 
 # Local Variables:

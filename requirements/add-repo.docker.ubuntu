@@ -1,7 +1,7 @@
 # see: https://docs.docker.com/engine/install/ubuntu/
 #
 #@key docker				https://download.docker.com/linux/ubuntu/gpg
-#
+#@sources
 deb [arch=$ARCH signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable
 
 # Local Variables:

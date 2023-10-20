@@ -1,3 +1,0 @@
----
-packages:
-  - https://apt.puppet.com/puppet7-release-$VERSION_CODENAME.deb

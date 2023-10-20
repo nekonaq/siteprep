@@ -2,60 +2,61 @@
 packages:
   #//
   - [ca-certificates, software-properties-common, apt-transport-https, gnupg2]
-  # ca-certificates                        # misc                        important
-  # software-properties-common             # admin                       optional 
-  # apt-transport-https                    # universe/admin              optional 
-  # gnupg2                                 # universe/utils              extra
+  # ca-certificates                        # misc		important
+  # software-properties-common             # admin		optional
+  # apt-transport-https                    # universe/admin	optional
+  # gnupg2                                 # universe/utils	extra
   - [aptitude, apt-rdepends]
-  # aptitude                               # universe/admin              optional
-  # apt-rdepends                           # universe/utils              optional 
-  
-  - [gawk, wget, curl, wget, openssh-client, git, rsync]
-  # gawk                                   # interpreters                optional
-  # curl                                   # web                         optional 
-  # wget                                   # web                         standard 
-  # openssh-client                         # net                         standard 
-  # git                                    # vcs                         optional 
-  # rsync                                  # net                         standard 
+  # aptitude                               # universe/admin	optional
+  # apt-rdepends                           # universe/utils	optional
 
-  - build-essential                        # devel                       optional 
+  - [gawk, wget, curl, wget, openssh-client, git, rsync]
+  # gawk                                   # interpreters	optional
+  # curl                                   # web		optional
+  # wget                                   # web		standard
+  # openssh-client                         # net		standard
+  # git                                    # vcs		optional
+  # rsync                                  # net		standard
+
+  - build-essential                        # devel		optional
   - [gcc, make, patch, zip, unzip]
-  # gcc                                    # devel                       optional 
-  # make                                   # devel                       optional 
-  # patch                                  # utils                       optional 
-  # zip                                    # utils                       optional 
-  # unzip                                  # utils                       optional 
-  - pkg-config                             # devel                       optional 
+  # gcc                                    # devel		optional
+  # make                                   # devel		optional
+  # patch                                  # utils		optional
+  # zip                                    # utils		optional
+  # unzip                                  # utils		optional
+  - pkg-config                             # devel		optional
 
   - [squashfs-tools, fuse3, sshfs, squashfuse, fuseiso]
-  # squashfs-tools                         # admin                       optional 
-  # fuse3                                  # utils                       standard 
-  # sshfs                                  # universe/utils              optional 
-  # squashfuse                             # universe/utils              optional 
-  # fuseiso                                # universe/admin              optional 
+  # squashfs-tools                         # admin		optional
+  # fuse3                                  # utils		standard
+  # sshfs                                  # universe/utils	optional
+  # squashfuse                             # universe/utils	optional
+  # fuseiso                                # universe/admin	optional
 
-  - uuid-runtime                           # libs                        standard
+  - uuid-runtime                           # libs		standard
   - [bind9-host, dnsutils, traceroute]
   - [htop, lsof]
-  - [tree, jq]
-  # bind9-host                             # net                         standard 
-  # dnsutils                               # universe/net                optional 
-  # traceroute                             # universe/net                optional 
-  # htop                                   # utils                       optional 
-  # lsof                                   # utils                       standard 
-  # tree                                   # universe/utils              optional 
-  # jq                                     # utils                       optional 
+  - [tree, jq, httpie]
+  # bind9-host                             # net		standard
+  # dnsutils                               # universe/net	optional
+  # traceroute                             # universe/net	optional
+  # htop                                   # utils		optional
+  # lsof                                   # utils		standard
+  # tree                                   # universe/utils	optional
+  # jq                                     # utils		optional
+  # httpie                                 # universe/web	extra
 
   #//
-  - openssl                                # utils                       important
-  - sqlite3                                # misc                        optional 
-  - mariadb-client                         # universe/database           optional 
-  - redis-tools                            # universe/database           optional 
+  - openssl                                # utils		important
+  - sqlite3                                # misc		optional
+  - mariadb-client                         # universe/database	optional
+  - redis-tools                            # universe/database	optional
 
   #//
   - [python3-venv, python3-keyring]
-  # python3-venv                           # universe/python             optional 
-  # python3-keyring                        # python                      optional 
+  # python3-venv                           # universe/python	optional
+  # python3-keyring                        # python		optional
 
   - libbz2-dev
   - libffi-dev

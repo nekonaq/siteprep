@@ -8,7 +8,7 @@ EOF
 prog="${0##*/}"
 run=
 
-RCSID='$Id: add-repo,v 1.1 2023/09/30 00:04:12 nak Exp nak $'
+RCSID='$Id: add-repo,v 1.2 2023/10/20 07:34:10 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -42,11 +42,17 @@ ensure_root() {
   fi
 }
 
-run__list() {
-  local ID= VERSION_ID=
-  . /etc/os-release
+replace_distro_info() {
+  sed -e 's!$ARCH!'"$ARCH"'!' \
+      -e 's!$ID!'"$ID"'!' \
+      -e 's!$VERSION_ID!'"$VERSION_ID"'!' \
+      -e 's!$VERSION_CODENAME!'"$VERSION_CODENAME"'!' \
+  ;
+}
 
+op__list() {
   local suffix
+  set -x
   for suffix in "$ID${VERSION_ID%%.*}" "$ID$VERSION_ID" "$ID"; do
     ( ls -1 "$0".*."$suffix" 2>/dev/null ||: ) |
       sed 's!^'"$0"'\.\(.\+\)\.'"$suffix"'$!\1!' |
@@ -55,9 +61,6 @@ run__list() {
 }
 
 find_reposrc() {
-  local ID= VERSION_ID=
-  . /etc/os-release
-
   local repo
   for repo in $@; do
     local src
@@ -84,39 +87,65 @@ install_gpg_keys() {
       local name= loc=
       eval "$keydef"
       if [ -z "$name" ] || [ -z "$loc" ]; then
-        echo "$prog: invalid key definition in: $reposrc"
+        echo "$prog: malformed @key line: $reposrc" >&2
         return 1
       fi
       ( set -x
-        ${run}curl -fsSL "$loc" |
-          ${run}gpg --dearmor --yes -o "/usr/share/keyrings/$name.gpg"
+        ${run}curl -fsSL "$loc"
+      ) | (
+        set -x
+        ${run}gpg --dearmor --yes -o "/usr/share/keyrings/$name.gpg"
       )
     done
 }
 
-run__apt_install() {
+install_deb() {
+  local reponame="$1" reposrc="$2"
+  local src
+
+  awk '$1 == "#@deb" { print($2) }' "$reposrc" |
+    while read src; do
+      if [ -z "$src" ]; then
+        echo "$prog: malformed @deb line: $reposrc" >&2
+        return 1
+      fi
+      src="$( echo -n "$src" | replace_distro_info )"
+      local deb="/tmp/${src##*/}"
+      ( trap "rm -f '$deb'" EXIT
+        set -x
+        ${run}curl -fLR -o "$deb" "$src"
+        ${run}dpkg -i --force-confmiss "$deb"
+      )
+    done
+}
+
+install_sources() {
+  local reponame="$1" reposrc="$2"
+  if grep -q '^#@sources[[:space:]]*$' "$reposrc"; then
+    sed '1,\!^#@sources!d; \!^#!d; \!^\s*$!d' "$reposrc" |
+      replace_distro_info | (
+      set -x
+      ${run}install /dev/stdin "/etc/apt/sources.list.d/$reponame.list"
+    )
+  fi
+}
+
+op__apt_install() {
   ensure_root
-
-  local ARCH="$( dpkg --print-architecture )"
-  local ID= VERSION_ID= VERSION_CODENAME=
-  . /etc/os-release
-
   local reponame
   for reponame in "$@"; do
     local reposrc="$( find_reposrc "$reponame" )"
+    if [ -z "$reposrc" ]; then
+      return 1
+    fi
     echo "## setup repository '$reponame' : $reposrc" >&2
     install_gpg_keys "$reponame" "$reposrc"
-    grep -v -e '^#' -e '^[[:space:]]*$' "$reposrc" | (
-      sed -e 's!$ARCH!'"$ARCH"'!' \
-          -e 's!$ID!'"$ID"'!' \
-          -e 's!$VERSION_ID!'"$VERSION_ID"'!' \
-          -e 's!$VERSION_CODENAME!'"$VERSION_CODENAME"'!' \
-      ;
-    ) | (
-      set -x
-      install /dev/stdin "/etc/apt/sources.list.d/$reponame.list"
-    )
+    install_deb "$reponame" "$reposrc"
+    install_sources "$reponame" "$reposrc"
   done
+  ( set -x
+    apt-get update -q
+  )
 }
 
 main() {
@@ -127,10 +156,11 @@ main() {
   fi
   eval set -- "$ARGS"
 
-  local ID= VERSION_ID=
+  export ARCH="$( dpkg --print-architecture )"
+  export ID= VERSION_ID= VERSION_CODENAME=
   . /etc/os-release
 
-  local op src
+  local op src update_after_install
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)
@@ -178,7 +208,7 @@ main() {
       op=list
     fi
   fi
-  "run__$op" "$@"
+  "op__$op" "$@"
 }
 
 main "$@"

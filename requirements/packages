@@ -10,7 +10,7 @@ me="$( realpath "$0" )"
 here="${me%/*}"
 run=
 
-RCSID='$Id: packages,v 2.3 2023/10/20 01:59:22 nak Exp nak $'
+RCSID='$Id: packages,v 2.4 2023/10/20 07:34:22 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -49,20 +49,12 @@ ensure_root() {
   fi
 }
 
-replace_dist_info() {
-  local str="$1"
-
-  local ARCH="$( dpkg --print-architecture )"
-  local ID= VERSION_ID= VERSION_CODENAME=
-  . /etc/os-release
-
-  echo -n "$str" | (
-    sed -e 's!$ARCH!'"$ARCH"'!' \
-        -e 's!$ID!'"$ID"'!' \
-        -e 's!$VERSION_ID!'"$VERSION_ID"'!' \
-        -e 's!$VERSION_CODENAME!'"$VERSION_CODENAME"'!' \
-    ;
-  )
+replace_distro_info() {
+  sed -e 's!$ARCH!'"$ARCH"'!' \
+      -e 's!$ID!'"$ID"'!' \
+      -e 's!$VERSION_ID!'"$VERSION_ID"'!' \
+      -e 's!$VERSION_CODENAME!'"$VERSION_CODENAME"'!' \
+  ;
 }
 
 list_absent_packages() {
@@ -80,8 +72,7 @@ op__list() {
   for pkg in $@; do
     case "$pkg" in
       *.deb)
-        echo "$( replace_dist_info "$pkg" )"
-
+        echo "$( echo -n "$pkg" | replace_distro_info )"
         ;;
       *)
         echo "$pkg"
@@ -92,9 +83,6 @@ op__list() {
 
 op__apt_install() {
   ensure_root
-
-  local ID= VERSION_ID= VERSION_CODENAME=
-  . /etc/os-release
 
   local repos debs pkgs
   for pkg in $@; do
@@ -120,14 +108,14 @@ op__apt_install() {
   done
   if [ $# -gt 0 ]; then
     ( set -x
-      apt-get update
+      apt-get update -q
     )
   fi
 
   eval set -- "$debs"
   local src
   for src in "$@"; do
-    src="$( replace_dist_info "$src" )"
+    src="$( echo "$src" | replace_distro_info )"
     local deb="/tmp/${src##*/}"
     ( trap "rm -f '$deb'" EXIT
       set -x
@@ -142,7 +130,9 @@ op__apt_install() {
     ( set -x
       export \
         DEBIAN_FRONTEND=noninteractive \
+        DEBIAN_PRIORITY=critical \
         DEBCONF_NONINTERACTIVE_SEEN=true \
+        DEBCONF_NOWARNINGS=yes \
       ;
       ${run}apt-get install -y $required
     )
@@ -157,7 +147,8 @@ main() {
   fi
   eval set -- "$ARGS"
 
-  local ID= VERSION_ID= VERSION_CODENAME=
+  export ARCH="$( dpkg --print-architecture )"
+  export ID= VERSION_ID= VERSION_CODENAME=
   . /etc/os-release
 
   local op=list src
