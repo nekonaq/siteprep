@@ -1,0 +1,8 @@
+---
+vms:
+  - name: w10
+    hostname: w10
+    box: inclusivedesign/windows10-eval-x64
+
+    roles: [mem6g, base]
+    providers: [{type: virtualbox, name: w10}]

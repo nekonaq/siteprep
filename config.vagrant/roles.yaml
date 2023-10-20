@@ -1,17 +1,8 @@
 ---
 roles:
-  linuxguest:
+  base:
     check_update: false
     # config.vbguest.auto_update = true
-
-    ssh:
-      forward_agent: true
-
-    synced_folders:
-    - host_path: .
-      guest_path: /vagrant
-      type: virtualbox
-      # disabled: true
 
     providers:
       - type: virtualbox
@@ -25,6 +16,31 @@ roles:
           # - [modifyvm, !ruby/sym id, --vrde, 'on']
           # - [modifyvm, !ruby/sym id, --vrdeaddress, '0.0.0.0']
           # - [modifyvm, !ruby/sym id, --vrdeport, '5977']
+
+  mem6g:
+    providers:
+      - type: virtualbox
+        memory: '6144'
+
+  mem4g:
+    providers:
+      - type: virtualbox
+        memory: '4096'
+
+  mem2g:
+    providers:
+      - type: virtualbox
+        memory: '2048'
+
+  linuxguest:
+    ssh:
+      forward_agent: true
+
+    synced_folders:
+    - host_path: .
+      guest_path: /vagrant
+      type: virtualbox
+      # disabled: true
 
     # provisioners:
     #   - type: bolt

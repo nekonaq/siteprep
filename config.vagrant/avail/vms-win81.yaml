@@ -1,0 +1,8 @@
+---
+vms:
+  - name: w81
+    hostname: w81
+    box: inclusivedesign/windows81-eval-x86
+
+    roles: [mem6g, base]
+    providers: [{type: virtualbox, name: w81}]

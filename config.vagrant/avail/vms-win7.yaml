@@ -1,0 +1,8 @@
+---
+vms:
+  - name: w7
+    hostname: w7
+    box: inclusivedesign/windows7-eval-x64
+
+    roles: [mem6g, base]
+    providers: [{type: virtualbox, name: w7}]

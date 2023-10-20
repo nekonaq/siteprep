@@ -1,0 +1,8 @@
+---
+vms:
+  - name: w11
+    hostname: w11
+    box: StefanScherer/windows_11
+
+    roles: [mem6g, base]
+    providers: [{type: virtualbox, name: w11}]

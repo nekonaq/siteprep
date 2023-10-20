@@ -1,10 +1,11 @@
 ---
 vms:
-  - name: u22p
-    hostname: u22p
-    providers: [{type: virtualbox, name: u22p}]
+  - name: u22
+    hostname: u22
 
-    roles: linuxguest
+    roles: [linuxguest, base]
+    providers: [{type: virtualbox, name: u22}]
+
     boot_timeout: 1800                     # 30m
 
     box: bento/ubuntu-22.04
@@ -13,54 +14,55 @@ vms:
         guest: 22
         host: 2222
 
-    # private_networks:
-    #   - ip: '192.168.56.220'
+    private_networks:
+      - ip: '192.168.56.220'
 
     # public_networks:
     #   - bridge: eno1
     #     auto_config: true
 
     synced_folders:
-    - host_path: .
-      guest_path: /vagrant
-      type: virtualbox
-      disabled: false
+      - host_path: .
+        guest_path: /vagrant
+        type: virtualbox
+        disabled: false
 
-  # - name: u20
-  #   hostname: u20
-  #   providers: [{type: virtualbox, name: u20}]
+  - name: u20
+    hostname: u20
 
-  #   roles: linuxguest
-  #   boot_timeout: 1800                     # 30m
+    roles: [linuxguest, base]
+    providers: [{type: virtualbox, name: u20}]
 
-  #   box: bento/ubuntu-20.04
-  #   forwarded_ports:
-  #     - id: ssh
-  #       guest: 22
-  #       host: 2220
+    boot_timeout: 1800                     # 30m
 
-  #   private_networks:
-  #     - ip: '192.168.56.200'
+    box: bento/ubuntu-20.04
+    forwarded_ports:
+      - id: ssh
+        guest: 22
+        host: 2220
 
+    private_networks:
+      - ip: '192.168.56.200'
 
-  # - name: u18
-  #   hostname: u18
-  #   providers: [{type: virtualbox, name: u18}]
+  - name: u18
+    hostname: u18
 
-  #   roles: linuxguest
-  #   boot_timeout: 1800                     # 30m
+    roles: [linuxguest, base]
+    providers: [{type: virtualbox, name: u18}]
 
-  #   box: bento/ubuntu-18.04
-  #   forwarded_ports:
-  #     - id: ssh
-  #       guest: 22
-  #       host: 2218
+    boot_timeout: 1800                     # 30m
 
-  #   private_networks:
-  #     - ip: '192.168.56.180'
+    box: bento/ubuntu-18.04
+    forwarded_ports:
+      - id: ssh
+        guest: 22
+        host: 2218
 
-  #   # synced_folders:
-  #   # - host_path: .
-  #   #   guest_path: /vagrant
-  #   #   type: virtualbox
-  #   #   disabled: true
+    private_networks:
+      - ip: '192.168.56.180'
+
+    synced_folders:
+      - host_path: .
+        guest_path: /vagrant
+        type: virtualbox
+        disabled: false
