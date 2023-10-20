@@ -7,7 +7,7 @@ EOF
 )"
 prog="${0##*/}"
 
-RCSID='$Id: install-pyenv,v 1.2 2023/09/30 00:06:53 nak Exp nak $'
+RCSID='$Id: setup-pyenv,v 1.3 2023/10/20 21:29:42 nak Exp nak $'
 REPO_BASE_DEFAULT=https://github.com/pyenv
 
 print_version() {

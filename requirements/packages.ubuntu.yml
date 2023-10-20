@@ -73,8 +73,8 @@ packages:
   - libmariadb-dev
 
   #//
-  - repo:docker
-  - [docker-ce, docker-compose-plugin]
+  # - repo:docker
+  # - [docker-ce, docker-compose-plugin]
 
   #// see: https://www.puppet.com/docs/puppet/8/install_puppet.html#enable_the_puppet_platform_apt
   # - https://apt.puppet.com/puppet8-release-$VERSION_CODENAME.deb

@@ -7,7 +7,7 @@ EOF
 )"
 prog="${0##*/}"
 
-RCSID='$Id: list-packages,v 1.1 2023/09/30 00:48:59 nak Exp nak $'
+RCSID='$Id: list-packages,v 1.2 2023/10/20 21:58:44 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -20,8 +20,19 @@ Options:
   -R,--required        優先順位 required のパッケージ
   -I,--important       優先順位 important のパッケージ
   -S,--standard        優先順位 standard のパッケージ
+  -w,--width=WIDTH     表示の幅 (デフォルト 120)
+  -F,--display-format=FORMAT
+                       表示フォーマット
+  --manifest           表示の幅・フォーマットを manifest と同じにする
   -h, --help           このヘルプを表示する。
   --version            プログラムのバージョンを表示する。
+
+NOTE:
+  フィールド間を単一の空白文字にする:
+  $prog -w0 --installed
+
+  インストールしているパッケージ一覧を manifest 形式で出力する:
+  $prog --manifest --installed
 
 EOF
 }
@@ -43,7 +54,7 @@ ensure_aptitude() {
 
 main() {
   ensure_aptitude
-  ARGS=$( getopt --name $prog --long help,version,installed,required,important,standard --options hRIS -- "$@" )
+  ARGS=$( getopt --name $prog --long help,version,installed,required,important,standard,width:,display-format:,manifest --options hRISw:F: -- "$@" )
   if [ $? != 0 ]; then
     echo "$prog: getopt error occured: $?" >&2
     exit 2
@@ -51,6 +62,8 @@ main() {
   eval set -- "$ARGS"
 
   local query=
+  local width=120
+  local format='%c%a%M %p %V# %s# %P'
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)
@@ -73,6 +86,18 @@ main() {
       -S|--standard)
         query="$query\n~pstandard"
         ;;
+      -w|--width)
+        width="$2"
+        shift
+        ;;
+      -F|--display-format)
+        format="$2"
+        shift
+        ;;
+      --manifest)
+        width=0
+        format='%p %V'
+        ;;
       --)
         shift
         break
@@ -86,7 +111,7 @@ main() {
       sort | uniq | grep -v '^$' | paste -s -d'|'
   )"
   export LANG=C.UTF-8
-  aptitude -q -w120 search "$qstr" -F'%c%a%M %p %V# %s# %P'
+  aptitude -q -w"$width" search "$qstr" -F"$format"
 }
 
 main "$@"
