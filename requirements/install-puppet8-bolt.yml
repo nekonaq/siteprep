@@ -1,0 +1,6 @@
+---
+packages:
+  #// see: https://www.puppet.com/docs/bolt/latest/bolt_installing#install-bolt-on-ubuntu
+  - repo:puppet8
+  - puppet-agent
+  - puppet-bolt

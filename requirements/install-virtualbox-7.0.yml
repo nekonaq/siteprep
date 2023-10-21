@@ -1,0 +1,6 @@
+---
+packages:
+  - repo:virtualbox
+  - virtualbox-7.0
+  - repo:hashicorp
+  - vagrant

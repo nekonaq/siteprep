@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e +x
+prog="${0##*/}"
+me="$( realpath "$0" )"
+
+VAGRANT_PLUGINS="
+vagrant-hostmanager
+vagrant-bolt
+$0.includes/vagrant-config_builder-1.3.0.2310.1.gem
+"
+
+main() {
+  local plugin
+  for plugin in $VAGRANT_PLUGINS "$@"; do
+    ( set -x
+      vagrant plugin install "$plugin"
+    )
+  done
+  
+}
+
+main "$@"

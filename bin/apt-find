@@ -1,0 +1,91 @@
+#!/bin/sh
+set -e +x
+prog="${0##*/}"
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+
+RCSID='$Id: apt-find,v 1.1 2023/10/21 20:40:34 nak Exp nak $'
+
+usage() {
+  echo "$prog: sorry, no help available" >&2
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version"
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version,no-version --options hN -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: invalid parameter (use -h for help)" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  local no_version=
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        usage
+        exit
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      -N|--no-version)
+        no_version=yes
+        ;;
+      --)
+        shift; break
+        ;;
+    esac
+    shift
+  done
+
+  for name in "$@"; do
+    # echo "-- $name"
+    apt show "$name" 2>/dev/null |
+      awk -vno_version="$no_version" '
+function basename(file, ar, an) {
+    an = split(aptsrc, ar, "/")
+    return ar[an]
+}
+function pkgsection(aptname, section, ar, an) {
+    an = split(section, ar, "/")
+    if (an == 1) {
+        return aptname "/" section
+    } else {
+        return section
+    }
+}
+function flush() {
+    if (package != "") {
+        # print package, version, pkgsection(aptname, section), priority, apttask;
+        if (no_version) {
+           print package, section, priority, apttask;
+         } else {
+           print package, version, section, priority, apttask;
+         }
+    }
+}
+BEGIN { OFS = "\t"; package="" }
+/^Package:/ { flush(); package=$2 }
+/^Version:/ { version=$2 }
+/^Priority:/ { priority=$2 }
+/^Section:/ { section=$2 }
+/^APT-Sources:/ { aptsrc=$3; aptname=basename($3); }
+/^Task:/ { gsub(/^.+:/, ""); gsub(/,\s+/, ","); apttask=$0; }
+END { flush() }
+'
+  done | sed 's!\s\+$!!'
+}
+
+main "$@"

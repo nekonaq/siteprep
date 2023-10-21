@@ -54,9 +54,10 @@ packages:
   - redis-tools                            # universe/database	optional
 
   #//
-  - [python3-venv, python3-keyring]
-  # python3-venv                           # universe/python	optional
-  # python3-keyring                        # python		optional
+  - python3-venv                           # universe/python	optional
+  # python3-pip                            # universe/python	optional
+  - python3-keyring                        # python		optional
+  # NOTE: 'pyenv install 3.10.12' において python3-pip が必要かも -> 不要だった
 
   - libbz2-dev
   - libffi-dev
@@ -71,25 +72,6 @@ packages:
   #//
   - libpcre3-dev
   - libmariadb-dev
-
-  #//
-  # - repo:docker
-  # - [docker-ce, docker-compose-plugin]
-
-  #// see: https://www.puppet.com/docs/puppet/8/install_puppet.html#enable_the_puppet_platform_apt
-  # - https://apt.puppet.com/puppet8-release-$VERSION_CODENAME.deb
-  # - https://apt.puppet.com/puppet7-release-$VERSION_CODENAME.deb
-  # - https://apt.puppet.com/puppet6-release-$VERSION_CODENAME.deb
-  # - puppet-agent
-
-  #//
-  # - repo:virtualbox
-  # - virtualbox-7.0
-
-  #//
-  # - repo:hashicorp
-  # - vagrant
-  # - packer
 
   #//
   # - repo:elastic-8.x

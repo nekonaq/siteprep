@@ -8,7 +8,7 @@ EOF
 prog="${0##*/}"
 run=
 
-RCSID='$Id: add-repo,v 1.3 2023/10/20 21:16:36 nak Exp nak $'
+RCSID='$Id: add-repo,v 1.4 2023/10/21 00:43:02 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -144,7 +144,7 @@ op__apt_install() {
     install_sources "$reponame" "$reposrc"
   done
   ( set -x
-    apt-get update -q
+    ${run}apt-get update -q
   )
 }
 

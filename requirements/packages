@@ -10,7 +10,7 @@ me="$( realpath "$0" )"
 here="${me%/*}"
 run=
 
-RCSID='$Id: packages,v 2.4 2023/10/20 07:34:22 nak Exp nak $'
+RCSID='$Id: packages,v 2.5 2023/10/21 00:41:50 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -27,6 +27,7 @@ Options:
    --list            インストールするパッケージの一覧を表示する。(デフォルト)
    --install         パッケージをインストールする。
    -f, --file=PATH   パッケージ定義ファイルを指定する。
+   --pre-update      最初に apt-get update する。
    --dry-run         コマンドを表示するだけで実行しない。
    -h, --help        このヘルプを表示する。
    --version         バージョンを表示する。
@@ -81,6 +82,12 @@ op__list() {
   done
 }
 
+op__apt_update() {
+  ( set -x
+    ${run}apt-get update -q
+  )
+}
+
 op__apt_install() {
   ensure_root
 
@@ -107,9 +114,7 @@ op__apt_install() {
     )
   done
   if [ $# -gt 0 ]; then
-    ( set -x
-      apt-get update -q
-    )
+    op__apt_update
   fi
 
   eval set -- "$debs"
@@ -140,7 +145,7 @@ op__apt_install() {
 }
 
 main() {
-  ARGS=$( getopt --name $prog --long help,version,dry-run,file:,list,install --options hf:l -- "$@" )
+  ARGS=$( getopt --name $prog --long help,version,dry-run,file:,list,install,pre-update --options hf:l -- "$@" )
   if [ $? != 0 ]; then
     echo "$prog: invalid parameter (use -h for help)" >&2
     exit 2
@@ -151,7 +156,7 @@ main() {
   export ID= VERSION_ID= VERSION_CODENAME=
   . /etc/os-release
 
-  local op=list src
+  local op=list src pre_update
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)
@@ -184,6 +189,9 @@ main() {
             ;;
         esac
         ;;
+      --pre-update)
+        pre_update=yes
+        ;;
       --)
         shift
         break
@@ -203,6 +211,10 @@ main() {
         break
       fi
     done
+  fi
+
+  if [ "$pre_update" ]; then
+    op__apt_update
   fi
 
   set -- "$@" "$(

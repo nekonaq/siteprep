@@ -1,0 +1,6 @@
+---
+packages:
+  #// see: https://docs.docker.com/engine/install/ubuntu/
+  #// see: https://docs.docker.com/compose/install/linux/
+  - repo:docker
+  - [docker-ce, docker-compose-plugin]

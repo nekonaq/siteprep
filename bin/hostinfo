@@ -1,0 +1,218 @@
+#!/bin/sh
+set -e +x
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+
+RCSID='$Id: hostinfo,v 1.4 2023/10/21 20:31:36 nak Exp nak $'
+
+usage() {
+  echo "$prog: sorry, no help available" >&2
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version\n$COPYING"
+}
+
+get_os_name() {
+  . /etc/os-release
+  echo "$PRETTY_NAME"
+}
+
+hostinfo_system() {
+  if ! hostnamectl 2>/dev/null; then
+    printf '%18s: %s\n' 'Hostname' "$( uname -n )"
+    printf '%18s: %s\n' 'Operating System' "$( get_os_name )"
+    printf '%18s: %s\n' 'Kernel' "$( uname -sr )"
+    printf '%18s: %s\n' 'Architecture' "$( uname -m )"
+    return
+  fi
+}
+
+get_locale() {
+  ( localectl 2>/dev/null ||
+      echo "System Locale: $(cat /etc/default/locale )"
+  ) |
+    awk -F': ' '$1 ~ /System Locale/ {print $2}'
+}
+
+get_timezone() {
+  ( timedatectl 2>/dev/null ||
+      echo "Time zone: $( cat /etc/timezone )"
+  ) |
+    awk -F': ' '$1 ~ /Time zone/ {print $2}'
+}
+
+hostinfo_netaddr() {
+  # if BRIEF then
+  #    hostname -I
+  #    return
+  # fi
+  ip -br addr | grep -v '^lo'
+}
+
+hostinfo_memory() {
+  free -m
+}
+
+hostinfo_diskdev() {
+  lsblk -if -e 7 -o +size,type,tran
+}
+
+get_diskpart() {
+  lsblk -ind -o name,type | awk '$2 == "disk" {print $1}' |
+    while read devname; do
+      parted "/dev/$devname" u gb p free 2>/dev/null
+    done
+}
+
+hostinfo_diskpart() {
+  local diskpart="$( get_diskpart )"
+  if [ -n "$( echo "$diskpart" | grep -v '^\s*$' )" ]; then
+    echo "$diskpart"
+  fi
+}
+
+hostinfo_diskfs() {
+  df -hl -T -t ext4 -t ext3 -t ext2 -t xfs -t vfat |
+    sed -e '1s!^!#!' |
+    sort |
+    sed -e 's!^#!!'
+}
+
+hostinfo_swap() {
+  swapon
+}
+
+hostinfo_updates_available() {
+  local stamp=/var/lib/update-notifier/updates-available
+  if [ -f "$stamp" ]; then
+    grep -v -e '^$' -e '^To see' "$stamp" 2>/dev/null
+  fi
+}
+
+hostinfo_reboot_required() {
+  local stamp=/var/run/reboot-required
+  if [ -f "$stamp" ]; then
+    grep -v -e '^$' "$stamp" 2>/dev/null
+  fi
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version --options h -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: getopt error occured: $?" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --help|-h)
+        usage
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --)
+        shift; break
+        ;;
+    esac
+    shift
+  done
+
+  export LC_ALL=C.UTF-8
+
+  local hostinfo_diskdev="$( hostinfo_diskdev )"
+  local hostinfo_diskpart="$( hostinfo_diskpart )"
+  local hostinfo_diskfs="$( hostinfo_diskfs )"
+  local hostinfo_swap="$( hostinfo_swap )"
+  local hostinfo_updates_available="$( hostinfo_updates_available )"
+  local hostinfo_reboot_required="$( hostinfo_reboot_required )"
+
+  cat <<EOF
+$( hostinfo_system )
+
+$( printf '%18s: %s\n' 'System locale' "$( get_locale )" )
+$( printf '%18s: %s\n' 'Time zone' "$( get_timezone )" )
+$( printf '%18s: %s\n' 'Local time' "$( date '+%Y-%m-%d %H:%M:%S%z' )" )
+$( printf '%18s: %s\n' 'Universal time' "$( TZ=UTC date '+%Y-%m-%d %H:%M:%S%z' )" )
+
+### Network
+$( hostinfo_netaddr )
+
+### Memory
+$( hostinfo_memory )
+
+EOF
+  if [ -n "$hostinfo_diskdev$hostinfo_diskpart$hostinfo_diskfs$hostinfo_swap" ]; then
+    cat <<EOF
+### Storage
+EOF
+
+    if [ -n "$hostinfo_diskdev" ]; then
+    cat <<EOF
++ lsblk
+$hostinfo_diskdev
+
+EOF
+    fi
+
+    if [ -n "$hostinfo_diskpart" ]; then
+    cat <<EOF
++ parted
+$hostinfo_diskpart
+
+EOF
+    fi
+
+    if [ -n "$hostinfo_diskfs" ]; then
+    cat <<EOF
++ df
+$hostinfo_diskfs
+
+EOF
+    fi
+  fi
+
+  if [ -n "$hostinfo_swap" ]; then
+    cat <<EOF
++ swapon
+$hostinfo_swap
+
+EOF
+  fi   
+
+  if [ -n "$hostinfo_updates_available$hostinfo_reboot_required" ]; then
+    cat <<EOF
+### System update information
+EOF
+    if [ -n "$hostinfo_updates_available" ]; then
+      cat <<EOF
+$hostinfo_updates_available
+
+EOF
+    fi
+    if [ -n "$hostinfo_reboot_required" ]; then
+      cat <<EOF
+$hostinfo_reboot_required
+
+EOF
+    fi
+  fi
+}
+
+main "$@"
+
+# Local Variables:
+# fill-column: 84
+# End:

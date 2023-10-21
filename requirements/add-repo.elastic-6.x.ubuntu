@@ -1,0 +1,9 @@
+# see: https://www.elastic.co/guide/en/elasticsearch/reference/6.8/deb.html
+#
+#@key elasticsearch-keyring		https://artifacts.elastic.co/GPG-KEY-elasticsearch
+#@sources
+deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/6.x/apt stable main
+
+# Local Variables:
+# mode: conf
+# End:

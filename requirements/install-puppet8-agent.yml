@@ -1,0 +1,5 @@
+---
+packages:
+  #// see: https://www.puppet.com/docs/puppet/8/install_puppet.html#enable_the_puppet_platform_apt
+  - repo:puppet8
+  - puppet-agent
