@@ -10,7 +10,7 @@ me="$( realpath "$0" )"
 here="${me%/*}"
 run=
 
-RCSID='$Id: packages,v 2.5 2023/10/21 00:41:50 nak Exp nak $'
+RCSID='$Id: packages,v 2.7 2023/10/21 21:22:40 nak Exp nak $'
 
 usage() {
   cat <<EOF
@@ -27,7 +27,9 @@ Options:
    --list            インストールするパッケージの一覧を表示する。(デフォルト)
    --install         パッケージをインストールする。
    -f, --file=PATH   パッケージ定義ファイルを指定する。
-   --pre-update      最初に apt-get update する。
+   --pre-update, --update
+                     最初に apt-get update する。
+   --autoremove      最後に apt-get autoremove する。
    --dry-run         コマンドを表示するだけで実行しない。
    -h, --help        このヘルプを表示する。
    --version         バージョンを表示する。
@@ -88,8 +90,18 @@ op__apt_update() {
   )
 }
 
+op__apt_autoremove() {
+  ( set -x
+    ${run}apt-get autoremove -y
+  )
+}
+
 op__apt_install() {
   ensure_root
+
+  if [ "$_PACKAGES_PRE_UPDATE" ]; then
+    op__apt_update
+  fi
 
   local repos debs pkgs
   for pkg in $@; do
@@ -142,10 +154,14 @@ op__apt_install() {
       ${run}apt-get install -y $required
     )
   fi
+
+  if [ "$_PACKAGES_AUTOREMOVE" ]; then
+    op__apt_autoremove
+  fi
 }
 
 main() {
-  ARGS=$( getopt --name $prog --long help,version,dry-run,file:,list,install,pre-update --options hf:l -- "$@" )
+  ARGS=$( getopt --name $prog --long help,version,dry-run,file:,list,install,pre-update,update,autoremove --options hf:l -- "$@" )
   if [ $? != 0 ]; then
     echo "$prog: invalid parameter (use -h for help)" >&2
     exit 2
@@ -156,7 +172,7 @@ main() {
   export ID= VERSION_ID= VERSION_CODENAME=
   . /etc/os-release
 
-  local op=list src pre_update
+  local op=list src pre_update autoremove
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)
@@ -189,8 +205,11 @@ main() {
             ;;
         esac
         ;;
-      --pre-update)
+      --pre-update|--update)
         pre_update=yes
+        ;;
+      --autoremove)
+        autoremove=yes
         ;;
       --)
         shift
@@ -213,10 +232,6 @@ main() {
     done
   fi
 
-  if [ "$pre_update" ]; then
-    op__apt_update
-  fi
-
   set -- "$@" "$(
     cat "$src" |
       /usr/bin/python3 -c '
@@ -226,6 +241,10 @@ print(" ".join([li for le in names for li in le]))
 '
   )"
 
+  export \
+    _PACKAGES_PRE_UPDATE="$pre_update" \
+    _PACKAGES_AUTOREMOVE="$autoremove" \
+  ;
   "op__$op" "$@"
 }
 

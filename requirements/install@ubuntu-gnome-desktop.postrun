@@ -1,0 +1,140 @@
+#!/bin/sh
+set -e +x
+COPYING="$( cat <<'EOF'
+Copyright 2023 tnak@nekonaq.com
+License Apache 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
+EOF
+)"
+prog="${0##*/}"
+me="$( realpath "$0" )"
+here="${me%/*}"
+run=
+
+RCSID='$Id$'
+PUPPET_BASE_DIR=/opt/puppetlabs/puppet
+
+usage() {
+  echo "$prog: sorry, no help available" >&2
+}
+
+print_version() {
+  local version="$( echo "$RCSID" | awk '{ print $3, gensub(/\//, "-", "g", $4)}' )"
+  if [ -z "${version# }" ]; then
+    version="wip-$( date -Id -r "$0" )"
+  fi
+  echo "$prog $version"
+}
+
+setup_xrdp_session() {
+  local xrdp_session_sh=/etc/xrdp/startubuntu.sh
+  if [ ! -x "$xrdp_session_sh" ]; then
+    ( cat <<'EOF'
+#!/bin/sh
+export GNOME_SHELL_SESSION_MODE=ubuntu
+export XDG_CURRENT_DESKTOP=ubuntu:GNOME
+exec /etc/xrdp/startwm.sh
+EOF
+    ) | (
+      set -x
+      install -m755 /dev/stdin "$xrdp_session_sh"
+    )
+  fi
+
+  local xrdp_sesman_ini=/etc/xrdp/sesman.ini
+  if [ ! -e "$xrdp_sesman_ini.orig" ]; then
+    ( set -x
+      sed -i.orig \
+          -e 's!startwm!startubuntu!g' \
+          -e 's!FuseMountName=thinclient_drives!FuseMountName=shared-drives!g' \
+          "$xrdp_sesman_ini" \
+      ;
+    )
+  fi
+}
+
+alllow_x11_user_anybody() {
+  local xwrapper_config=/etc/X11/Xwrapper.config
+  if [ ! -e "$xwrapper_config.orig" ]; then
+    ( set -x
+      sed -i.orig -e 's!allowed_users=console!allowed_users=anybody!g' "$xwrapper_config"
+    )
+  fi
+}
+
+setup_desktop_policy() {
+  # Configure the policy xrdp session
+  local target=/etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla
+  if [ ! -e "$target" ]; then
+    ( cat <<'EOF'
+[Allow Colord all Users]
+Identity=unix-user:*
+Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+ResultAny=no
+ResultInactive=no
+ResultActive=yes
+EOF
+    ) | (
+      set -x
+      install -m644 /dev/stdin "$target"
+    )
+  fi
+
+  # https://askubuntu.com/questions/1193810/authentication-required-to-refresh-system-repositories-in-ubuntu-19-10
+  local target=/etc/polkit-1/localauthority/50-local.d/46-allow-update-repo.pkla
+  if [ ! -e "$target" ]; then
+    ( cat <<'EOF'
+[Allow Package Management all Users]
+Identity=unix-user:*
+Action=org.freedesktop.packagekit.system-sources-refresh
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOF
+    ) | (
+      set -x
+      install -m644 /dev/stdin "$target"
+    )
+  fi
+}
+
+main() {
+  ARGS=$( getopt --name $prog --long help,version,dry-run --options h -- "$@" )
+  if [ $? != 0 ]; then
+    echo "$prog: getopt error occured: $?" >&2
+    exit 2
+  fi
+  eval set -- "$ARGS"
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --help|-h)
+        usage
+        return
+        ;;
+      --version)
+        print_version
+        return
+        ;;
+      --dry-run)
+        run=': '
+        ;;
+      --)
+        shift; break
+        ;;
+    esac
+    shift
+  done
+
+  # see: https://gihyo.jp/admin/serial/01/ubuntu-recipe/0621
+  setup_xrdp_session
+  alllow_x11_user_anybody
+  setup_desktop_policy
+  ( set -x
+    # コンソールの GUI ログインをやめる
+    systemctl set-default multi-user.target
+    # コンソールを GUI ログインにする; desktop インストール後のデフォルト
+    # systemctl set-default graphical.target
+  )
+}
+
+main "$@"

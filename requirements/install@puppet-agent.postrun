@@ -10,7 +10,8 @@ me="$( realpath "$0" )"
 here="${me%/*}"
 run=
 
-RCSID='$Id: install@,v 1.4 2023/10/22 03:02:50 nak Exp nak $'
+RCSID='$Id$'
+PUPPET_BASE_DIR=/opt/puppetlabs/puppet
 
 usage() {
   echo "$prog: sorry, no help available" >&2
@@ -52,36 +53,21 @@ main() {
     shift
   done
 
-  if [ "$prog" = 'install@' ]; then
-    echo "$prog: this is a template script. use with symlink" >&2
-    exit 1
-  fi
+  local dst=/usr/local/bin
+  local name
+  for name in puppet facter r10k augtool augzee augmatch augparse; do
+    local target="$( command -v "$PUPPET_BASE_DIR/bin/$name" )"
+    if [ -z "$target" ]; then
+      continue
+    fi
 
-  local conf="$here/$prog.yml"
-  if [ -n "$run" ]; then
-    cat <<EOF >&2
-## prog: $prog
-##   me: $me
-## here: $here"
-## name: $name
-EOF
-  fi
-
-  if [ ! -e "$conf" ]; then
-    echo "$prog: no configuration file found: $conf" >&2
-    return 1
-  fi
-  ( set -x
-    "$here/packages" ${run:+--dry-run} -f "$conf" --install "$@"
-  )
-
-  local postrun="$here/$prog.postrun"
-  if [ ! -x "$postrun" ]; then
-    return
-  fi
-  ( set -x
-    "$postrun" ${run:+--dry-run}
-  )
+    local link="$dst/$name"
+    if [ -L "$link" ] || [ ! -e "$link" ]; then
+      ( set -x
+        ${run}ln -sf "$target" "$link"
+      )        
+    fi
+  done
 }
 
 main "$@"
